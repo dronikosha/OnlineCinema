@@ -1,0 +1,115 @@
+{% load static %}
+<!DOCTYPE html>
+<html>
+<head>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css" integrity="sha384-xOolHFLEh07PJGoPkLv1IbcEPTNtaed2xpHsD9ESMhqIYd0nLMwNLD69Npy4HI+N" crossorigin="anonymous">
+  <link href="https://vjs.zencdn.net/8.3.0/video-js.css" rel="stylesheet" />
+  <title>Local Video Player</title>
+  <style>
+    body {
+      background-color: black;
+      font-family: Arial, sans-serif;
+    }
+    .video-player {
+      margin: 50px auto;
+      max-width: 1000px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+    }
+    video {
+      width: 100%;
+      height: auto;
+      display: block;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <div class="row">
+      <div class="col-12">
+        <div class="bg-dark text-white p-3 d-flex" style="width: 100%; display: flex; justify-content: space-between; flex-direction: row;">
+          <h4 class="mb-0">{{ room.movie.name }}</h4>
+            <a href="{% url 'home' %}">
+              <button type="button" class="btn btn-danger">Выйти</button>
+            </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+
+  <div class="video-player border">
+    <video id="videoPlayer"
+    class="video-js"
+    controls
+    preload="metadata"
+    width="940"
+    height="600"
+    data-setup="{}">
+      <source src="{% url 'video_view' room.movie.src %}" type="video/mp4">
+      <p class="vjs-no-js">
+        To view this video please enable JavaScript, and consider upgrading to a
+        web browser that
+        <a href="https://videojs.com/html5-video-support/" target="_blank">supports HTML5 video</a>
+      </p>
+      Your browser does not support the video tag.
+    </video>
+  </div>
+
+  <div class="container">
+    <div class="row justify-content-start">
+      <div class="col-12 col-md-6">
+        <div class="bg-dark text-white p-3 rounded">
+          <h4 class="mb-0" id="uuid">{{ room.room_id }}</h4>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+		function uuidv4() {
+			return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+				var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
+				return v.toString(16);
+			});
+		}
+
+    const socket = new WebSocket('ws://' + window.location.host + '/ws/video/' + '{{ room.room_id }}' + '/');
+    const clientId = uuidv4();
+    console.log(clientId);
+    const video = document.getElementById('videoPlayer');
+
+    socket.onmessage = function (e) {
+      const data = JSON.parse(e.data);
+      const messageType = data.type;
+      console.log(clientId)
+      if ((messageType === 'pause') && (data.clientId !== clientId)){
+        video.pause();
+
+      } else if ((messageType === 'start') && (data.clientId !== clientId)){
+        video.play();
+      }
+    };
+
+    video.addEventListener('pause', () => {
+      console.log("PAUSE "+video.currentTime)
+      socket.send(JSON.stringify({
+        type: 'pause',
+        position: video.currentTime,
+        clientId: clientId
+      }));
+    });
+    
+    video.addEventListener('play', () => {
+      console.log("PLAY ")
+      socket.send(JSON.stringify({
+        type: 'start',
+        position: video.currentTime,
+        clientId: clientId
+      }));
+    });
+  </script>
+
+</body>
+</html>
